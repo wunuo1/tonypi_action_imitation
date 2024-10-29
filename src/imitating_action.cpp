@@ -4,14 +4,13 @@
 #include "order_interpreter.hpp"
 #include "imitating_action.h"
 
+#define FILTER_NUM 2
 
 ActionImitationNode::ActionImitationNode(const std::string& node_name, const rclcpp::NodeOptions& options) : rclcpp::Node(node_name, options) {
     
     this->declare_parameter<std::string>("sub_topic", sub_topic_);
-    this->declare_parameter<std::string>("target_type", target_type_);
 
     this->get_parameter<std::string>("sub_topic", sub_topic_);
-    this->get_parameter<std::string>("target_type", target_type_);
     
     target_subscriber_ =  this->create_subscription<ai_msgs::msg::PerceptionTargets>(
       sub_topic_,
@@ -19,8 +18,12 @@ ActionImitationNode::ActionImitationNode(const std::string& node_name, const rcl
       std::bind(&ActionImitationNode::subscription_callback,
       this,
       std::placeholders::_1)); 
-    order_interpreter_ = std::make_shared<OrderInterpreter>();
+    // if (!msg_process_) {
+    //     msg_process_ = std::make_shared<std::thread>(
+    //         std::bind(&ActionImitationNode::MessageProcess, this));
+    // }
 
+    order_interpreter_ = std::make_shared<OrderInterpreter>();
     order_interpreter_->control_serial_servo("stand");
     order_interpreter_->control_PWM_servo(1, 1900, 200);
 }
@@ -28,7 +31,7 @@ ActionImitationNode::~ActionImitationNode(){
 
 }
 
-int ActionImitationNode::angle_calculator(const Point& point_1, const Point& point_2, const Point& point_3){
+double ActionImitationNode::angle_calculator(const Point& point_1, const Point& point_2, const Point& point_3){
     double l1 = Point::distance(point_2, point_3);
     double l2 = Point::distance(point_1, point_3);
     double l3 = Point::distance(point_1, point_2);
@@ -40,8 +43,17 @@ int ActionImitationNode::angle_calculator(const Point& point_1, const Point& poi
     }
     double radian = acos(cos_2);
     double degree = radian * (180.0 / M_PI);
-    std::cout<<degree<<std::endl;
     return degree;
+}
+
+void ActionImitationNode::angle_mean_filter(const double& angle, int& num, int& angle_sum, int& filter_result){
+    angle_sum += angle;
+    if(num > FILTER_NUM){
+        filter_result = angle_sum / (FILTER_NUM + 1);
+        angle_sum = 0;
+        num = 0;
+    }
+    num++;
 }
 
 void ActionImitationNode::subscription_callback(const ai_msgs::msg::PerceptionTargets::SharedPtr targets_msg){
@@ -60,95 +72,55 @@ void ActionImitationNode::subscription_callback(const ai_msgs::msg::PerceptionTa
     Point p8 (max_target.points[0].point[8].x, max_target.points[0].point[8].y);
     Point p6 (max_target.points[0].point[6].x, max_target.points[0].point[6].y);
     Point p12 (max_target.points[0].point[12].x, max_target.points[0].point[12].y);
-    int angle = angle_calculator(p8, p6, p12);
-    // if(no_target == true){
-    //     p_angle_change = ((p_angle_change + 300) % 900); 
-    //     p_angle = 1000 + p_angle_change;
-    //     order_interpreter_->control_PWM_servo(1, p_angle, 500);
+    Point p10 (max_target.points[0].point[10].x, max_target.points[0].point[10].y);
 
-    //     if(p_angle_change == 0){
-    //         y_angle_change = ((y_angle_change + 100) % 900); 
-    //         y_angle = y_angle + y_angle_change;
-    //         order_interpreter_->control_serial_servo("turn_right_fast");
-    //     }
+    if(p10.x > p6.x) return;
+    double angle1 = angle_calculator(p8, p6, p12);
+    angle_mean_filter(angle1, num1_, angle_sum1_, filter_result1_);
+    int pluse1 = 850 - (750 / 180) * filter_result1_;
+    order_interpreter_->control_serial_servo(7, pluse1, 0);
+
+
+    double angle2 = angle_calculator(p6, p8, p10);
+    if(angle2 == -1) angle2 = 180;
+
+    angle_mean_filter(angle2, num2_, angle_sum2_, filter_result2_);
+    double slope = double((p8.y - p6.y) )/ double((p8.x - p6.x));
+    double val_y = slope * (p10.x - p6.x);
+    // std::cout<<val_y<<" "<<(p10.y - p6.y)<<std::endl;
+    int pluse2 = 0;
+    if (val_y > (p10.y - p6.y)){
+        pluse2 = 0 + (500 / 120) * (filter_result2_ - 60);
+    } else {
+        pluse2 = 900 - (400 / 120) * (filter_result2_ - 60);
+    }
+    order_interpreter_->control_serial_servo(6, pluse2, 0);
+    // if (slope1 > slope2){
+    //     pluse2 = 0 + (500 / 120) * (filter_result2_ - 60);
+    // } else if(slope1 < slope2){
+    //     pluse2 = 900 - (400 / 120) * (filter_result2_ - 60);
     // } else {
-    //     if((center_x == 0) && (center_y == 0)){
-    //         no_target_frame_number++;
-    //         if(no_target_frame_number >= 2){
-    //             no_target = true;
-    //             no_target_frame_number = 0;
-    //             return;
-    //         }
-    //     } else {
-    //         no_target_frame_number = 0;
-    //     }
-
-    //     //检测到目标后的行为
-    //     if (p_angle >= 1100 || p_angle <= 900){
-    //         if (center_y < 220 || center_y > 260)
-    //         {
-    //             p_angle += (240 - center_y)*0.5;
-    //             p_angle = p_angle > 1500 ? 1500 : p_angle;
-    //             p_angle = p_angle < 900 ? 900 : p_angle;
-    //             order_interpreter_->control_PWM_servo(1, p_angle , 200);
-    //         }
-    //     } else {
-    //         p_angle = 1000;
-    //         order_interpreter_->control_PWM_servo(1, p_angle, 200);
-    //     }
-
-    //     if (center_y < 350 && p_angle > 1100){
-    //         if(center_x < 380) {
-    //             order_interpreter_->control_serial_servo("turn_left_fast");
-    //         } else if(center_x > 420) {
-    //             order_interpreter_->control_serial_servo("turn_right_fast");
-    //         } else {
-    //             order_interpreter_->control_serial_servo("go_forward");
-    //         }
-    //     } else{
-    //         if (center_y < 260)
-    //         {
-    //             if(center_x < 380) {
-    //                 order_interpreter_->control_serial_servo("turn_left_fast");
-    //                 return;
-    //             } else if(center_x > 420) {
-    //                 order_interpreter_->control_serial_servo("turn_right_fast");
-    //                 return;
-    //             } else {
-    //                 order_interpreter_->control_serial_servo("go_forward");
-    //                 return;
-    //             }
-    //         } else if (center_y < 390)
-    //         {
-    //             order_interpreter_->control_serial_servo("go_forward_one_step");
-    //             return;
-    //         }
-
-    //         if (center_x < 300)
-    //         {
-    //             order_interpreter_->control_serial_servo("left_move_30");
-    //             return;
-    //         } else if(center_x < 400){
-    //             order_interpreter_->control_serial_servo("left_move");
-    //             return;
-    //         }
-    //         if (center_x > 560)
-    //         {
-    //             order_interpreter_->control_serial_servo("right_move_30");
-    //             return;
-    //         } else if (center_x > 470){
-    //             order_interpreter_->control_serial_servo("right_move");
-    //             return;
-    //         }
-
-    //         if ((center_x > 390) && (center_x < 470) && (center_y > 390) && (p_angle == 1000) ){
-    //             order_interpreter_->control_serial_servo("right_shot");
-    //         }
-    //     }
+    //     pluse2 = 500;
     // }
+    // std::cout<<pluse2<<std::endl;
+
+
+
+    // Point p7 (max_target.points[0].point[7].x, max_target.points[0].point[7].y);
+    // Point p5 (max_target.points[0].point[5].x, max_target.points[0].point[5].y);
+    // Point p11 (max_target.points[0].point[11].x, max_target.points[0].point[11].y);
+    // double angle = angle_calculator(p7, p5, p11);
+    // int mean_angle = angle_mean_filter(angle);
+    // int pluse = 150 + (750 / 180) * mean_angle;
+    // order_interpreter_->control_serial_servo(15, pluse, 0);
 
     return;
 }
+
+// void ActionImitationNode::MessageProcess(){
+
+// }
+
 
 int main(int argc, char* argv[]){
 
