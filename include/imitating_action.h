@@ -40,7 +40,6 @@ private:
 
     void MessageProcess(void);
     std::shared_ptr<OrderInterpreter> order_interpreter_;
-    std::shared_ptr<OrderInterpreter> order_interpreter1_;
 
     std::string sub_topic_ = "/hobot_hand_gesture_detection";
     ai_msgs::msg::PerceptionTargets targets_msg_;

@@ -19,7 +19,6 @@ ActionImitationNode::ActionImitationNode(const std::string& node_name, const rcl
     this->get_parameter<float>("b", b);
     this->get_parameter<std::string>("sub_topic", sub_topic_);
     order_interpreter_ = std::make_shared<OrderInterpreter>();
-    order_interpreter1_ = std::make_shared<OrderInterpreter>();
     target_subscriber_ =  this->create_subscription<ai_msgs::msg::PerceptionTargets>(
       sub_topic_,
       1,
@@ -78,46 +77,11 @@ void ActionImitationNode::angle_mean_filter1(const double& angle, int& num, std:
 }
 
 void ActionImitationNode::subscription_callback(const ai_msgs::msg::PerceptionTargets::SharedPtr targets_msg){
-    int max_head_size = 0;
-    ai_msgs::msg::Target max_head_target;
-    bool start_control = false;
     {
         std::unique_lock<std::mutex> lock(target_mutex_);
         targets_msg_ = *targets_msg;
         update_data_ = true;
         lock.unlock();
-    }
-
-    {
-        std::unique_lock<std::mutex> lock1(start_mutex_);
-        start_control = start_control_;
-    }
-    if(start_control == true){
-        std::cout<<"1"<<std::endl;
-        for(const auto &target : targets_msg_.targets){
-            if(target.rois[0].type == "head"){
-                int size = target.rois[0].rect.height * target.rois[0].rect.width;
-                if (size > max_head_size){
-                    max_head_target = target;
-                    max_head_size = size;
-                }
-            }
-        }
-        std::cout<<"2"<<std::endl;
-        if(max_head_size == 0) return;
-        static int p = 1400;
-        int center_x = max_head_target.rois[0].rect.x_offset + max_head_target.rois[0].rect.width / 2;
-        std::cout<<"3"<<std::endl;
-        if(center_x > (320 + a)){
-            p = int(p - (center_x - 320) * b); 
-            
-
-        } else if(center_x < (320 - a)) {
-            p = int(p + (320 - center_x) * b); 
-        }
-        std::cout<<p<<std::endl;
-        order_interpreter1_->control_PWM_servo(2, p, 100);
-        
     }
     return;
 }
@@ -132,6 +96,31 @@ void ActionImitationNode::MessageProcess(){
             }
             lock.unlock();
         }
+
+        int max_head_size = 0;
+        ai_msgs::msg::Target max_head_target;
+        if(start_control_ == true){
+            for(const auto &target : targets_msg.targets){
+                if(target.rois[0].type == "head"){
+                    int size = target.rois[0].rect.height * target.rois[0].rect.width;
+                    if (size > max_head_size){
+                        max_head_target = target;
+                        max_head_size = size;
+                    }
+                }
+            }
+            if(max_head_size == 0) continue;
+            static int p = 1400;
+            int center_x = max_head_target.rois[0].rect.x_offset + max_head_target.rois[0].rect.width / 2;
+            if(center_x > (320 + a)){
+                p = int(p - (center_x - 320) * b); 
+                order_interpreter_->control_PWM_servo(2, p, 100);
+            } else if(center_x < (320 - a)) {
+                p = int(p + (320 - center_x) * b); 
+                order_interpreter_->control_PWM_servo(2, p, 100);
+            }
+        }
+
 
         ai_msgs::msg::Target max_hand_target;
         int max_hand_size = 0;
