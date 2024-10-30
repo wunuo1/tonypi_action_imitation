@@ -36,13 +36,16 @@ private:
     void MessageProcess(void);
     std::shared_ptr<OrderInterpreter> order_interpreter_;
 
-    std::string sub_topic_ = "hobot_mono2d_body_detection";
+    std::string sub_topic_ = "/hobot_hand_gesture_detection";
     std::mutex point_target_mutex_;
     bool process_stop_ = false;
     std::shared_ptr<std::thread> msg_process_;
     int num1_ = 0, num2_ = 0, num3_ = 0, num4_ = 0;
     int angle_sum1_ = 0, angle_sum2_ = 0, angle_sum3_ = 0, angle_sum4_ = 0;
     int filter_result1_ = 0, filter_result2_ = 180, filter_result3_ = 0, filter_result4_ = 180;
+    bool start_control_ = false;
+    bool gesture_control_ = false;
+    bool imitating_control_ = false;
 };
 
 
