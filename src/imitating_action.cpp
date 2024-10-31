@@ -53,7 +53,7 @@ bool ActionImitationNode::collision_detection(const double& degree1, const doubl
     double angle1 = degree1 * M_PI / 180.0;
     // double angle2 = degree2 * M_PI / 180.0;
     double sin1 = std::sin(angle1);
-    float length1 = 2 + sin1 * 6;
+    float length1 = 1 + sin1 * 6;
     int degree = degree2 - (90 - degree1);
     double angle2 = degree * M_PI / 180.0;
     float length2 = 12 * std::cos(angle2);
@@ -169,19 +169,20 @@ void ActionImitationNode::MessageProcess(){
                     std::unique_lock<std::mutex> lock(start_mutex_);
                     if(start_num_ > 3){
                         start_control_ = true;
+                        order_interpreter_->control_PWM_servo(1, pluse_-300, 300);
+                        order_interpreter_->control_PWM_servo(1, pluse_, 300);
                     }
                     start_num_++;
                 }
                 end_num_ = 0;
-
                 std::cout<<"start"<<std::endl;
                 break;
             //good
             case 2:
             case 14:
+                if(start_control_ == false) continue;
                 end_num_++;
                 start_num_ = 0;
-                std::cout<<end_num_<<std::endl;
                 if(end_num_ > 10){
                     order_interpreter_->control_serial_servo("stand");
                     order_interpreter_->control_serial_servo("bow");
@@ -194,7 +195,6 @@ void ActionImitationNode::MessageProcess(){
                     gesture_control_ = false;
                     imitating_control_ = false;
                     std::cout<<"end"<<std::endl;
-
                 }
                 break;
             default:
@@ -226,7 +226,6 @@ void ActionImitationNode::MessageProcess(){
                 gesture_control_ = false;
                 imitating_control_ = true;
                 order_interpreter_->control_serial_servo(18, 500, 100);
-                // std::cout<<"P"<<std::endl;
                 break;
             default:
                 gesture_control_ = true;
@@ -252,13 +251,8 @@ void ActionImitationNode::MessageProcess(){
                 angle_mean_filter(angle1, num1_, angles1, filter_result1_);
                 int pluse1 = 900 - (750 / 180) * filter_result1_;
                 order_interpreter_->control_serial_servo(7, pluse1, 0);
-
-
                 double angle2 = angle_calculator(p6, p8, p10);
-
-
                 if(angle2 == -1) angle2 = 180;
-
                 // angle_mean_filter(angle2, num2_, angle_sum2_, filter_result2_);
                 angle_mean_filter(angle2, num2_, angles2, filter_result2_);
                 double slope = double((p8.y - p6.y) )/ double((p8.x - p6.x));
@@ -266,13 +260,12 @@ void ActionImitationNode::MessageProcess(){
                 int pluse2 = 0;
                 if (val_y > (p10.y - p6.y)){
                     pluse2 = 0 + (500.0 / 120) * (filter_result2_ - 60);
-                    
                 } else {
                     if(collision_detection(angle1, angle2) == true) {
                         std::cout<<"collision"<<std::endl;
                         continue;
                     }
-                    pluse2 = 900 - (200.0 / 120) * (filter_result2_ - 60);
+                    pluse2 = 900 - (300.0 / 120) * (filter_result2_ - 60);
                 }
                 order_interpreter_->control_serial_servo(6, pluse2, 0);
             }
@@ -291,7 +284,6 @@ void ActionImitationNode::MessageProcess(){
                 angle_mean_filter(angle3, num3_, angles3, filter_result3_);
                 int pluse3 = 100 + (750 / 180) * filter_result3_;
                 order_interpreter_->control_serial_servo(15, pluse3, 0);
-
 
                 double angle4 = angle_calculator(p5, p7, p9);
 
