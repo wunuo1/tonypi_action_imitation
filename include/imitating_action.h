@@ -32,11 +32,11 @@ private:
     rclcpp::Subscription<ai_msgs::msg::PerceptionTargets>::SharedPtr target_subscriber_;
     void subscription_callback(const ai_msgs::msg::PerceptionTargets::SharedPtr targets_msg);
     double angle_calculator(const Point& point_1, const Point& point_2, const Point& point_3);
-    void angle_mean_filter(const double& angle, int& num, int& angle_sum, int& filter_result);
 
+    // void angle_mean_filter(const double& angle, int& num, int& angle_sum, int& filter_result);
+    void angle_mean_filter(const double& angle, int& num, std::vector<int>& angles, int& filter_result);
 
-    void angle_mean_filter1(const double& angle, int& num, std::vector<int>& angles, int& filter_result);
-
+    bool collision_detection(const double& degree1, const double& degree2);
 
     void MessageProcess(void);
     std::shared_ptr<OrderInterpreter> order_interpreter_;
@@ -56,9 +56,13 @@ private:
     bool imitating_control_ = false;
     bool update_data_ = false;
     int end_num_ = 0;
+    int start_num_ = 0;
+    int right_control_num_ = 0;
+    int left_control_num_ = 0;
     int offset_ = 70;
     float ratio_ = 0.15;
-    int limit_ = 20;
+    int limit_right_ = 20;
+    int limit_left_ = 60;
 
     int head_id_ = 0;
     int hand_id_ = 0;
