@@ -56,12 +56,16 @@ private:
     bool imitating_control_ = false;
     bool update_data_ = false;
     int end_num_ = 0;
-    int a = 100;
-    float b = 0.5;
+    int offset_ = 70;
+    float ratio_ = 0.15;
+    int limit_ = 20;
 
+    int head_id_ = 0;
+    int hand_id_ = 0;
     std::vector<int> angles1{6};
     std::vector<int> angles2{6};
-
+    std::vector<int> angles3{6};
+    std::vector<int> angles4{6};
 };
 
 
