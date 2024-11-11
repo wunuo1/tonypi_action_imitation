@@ -21,7 +21,7 @@ find_package(ai_msgs REQUIRED)
 
 include_directories(include
   /usr/include
-  /usr/include/python3.10
+  /usr/include/python3.8
 )
 
 add_executable(tonypi_action_imitation
@@ -29,7 +29,7 @@ add_executable(tonypi_action_imitation
 )
 
 target_link_libraries(tonypi_action_imitation
-  python3.10
+  python3.8
 )
 
 ament_target_dependencies(tonypi_action_imitation
