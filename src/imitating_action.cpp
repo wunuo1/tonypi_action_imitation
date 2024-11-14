@@ -13,15 +13,11 @@ ActionImitationNode::ActionImitationNode(const std::string& node_name, const rcl
     this->declare_parameter<int>("offset", offset_);
     this->declare_parameter<int>("pluse", pluse_);
     this->declare_parameter<float>("ratio", ratio_);
-    this->declare_parameter<int>("limit_right", limit_right_);
-    this->declare_parameter<int>("limit_left", limit_left_);
 
     this->get_parameter<std::string>("sub_topic", sub_topic_);
     this->get_parameter<int>("offset", offset_);
     this->get_parameter<int>("pluse", pluse_);
     this->get_parameter<float>("ratio", ratio_);
-    this->get_parameter<int>("limit_right", limit_right_);
-    this->get_parameter<int>("limit_left", limit_left_);
     
     
     order_interpreter_ = std::make_shared<OrderInterpreter>();
@@ -63,6 +59,32 @@ bool ActionImitationNode::collision_detection(const double& degree1, const doubl
         return false;
     }
 
+}
+
+bool ActionImitationNode::collision_detection_pluse_r(const int& p6, const int& p7){
+    bool result = false;
+    if (p6 > 500 && p7 > 500){
+        double r1 = 2.0 + 6.0 * std::cos((p7 - 500.0) * M_PI / 800.0);
+        double r2 = 12.0 * std::sin(((p6 -500.0) * 90.0 / 400.0 - (90 - (p7 - 500) * 90 / 400)) * M_PI /180.0);
+        if (r2 > r1) {
+            result = true;
+            // std::cout<<"r1: "<<r1<<"r2: "<<r2<<std::endl;
+        }
+    }
+    return result;
+}
+
+bool ActionImitationNode::collision_detection_pluse_l(const int& p14, const int& p15){
+    bool result = false;
+    if (p14 < 500 && p15 < 500){
+        double l1 = 0.0 + 6.0 * std::cos((500.0 - p15) * M_PI / 800.0);
+        double l2 = 12.0 * std::sin(((500.0 - p14) * 90.0 / 400.0 - (90 - (500.0 - p15) * 90 / 400)) * M_PI /180.0);
+        if (l2 > l1) {
+            result = true;
+            // std::cout<<"l1: "<<l1<<"l2: "<<l2<<std::endl;
+        }
+    }
+    return result;
 }
 
 double ActionImitationNode::angle_calculator(const Point& point_1, const Point& point_2, const Point& point_3){
@@ -140,9 +162,11 @@ void ActionImitationNode::MessageProcess(){
             int center_x = max_head_target.rois[0].rect.x_offset + max_head_target.rois[0].rect.width / 2;
             if(center_x > (320 + offset_)){
                 p = int(p - (center_x - 320) * ratio_); 
+                (p < 1200) ? (p = 1200) : (p = p);
                 order_interpreter_->control_PWM_servo(2, p, 100);
             } else if(center_x < (320 - offset_)) {
                 p = int(p + (320 - center_x) * ratio_); 
+                (p > 1800) ? (p = 1800) : (p = p);
                 order_interpreter_->control_PWM_servo(2, p, 100);
             }
         }
@@ -250,23 +274,31 @@ void ActionImitationNode::MessageProcess(){
                 // angle_mean_filter(angle1, num1_, angle_sum1_, filter_result1_);
                 angle_mean_filter(angle1, num1_, angles1, filter_result1_);
                 int pluse1 = 900 - (750 / 180) * filter_result1_;
-                order_interpreter_->control_serial_servo(7, pluse1, 0);
+                (pluse1 < 0) ? (pluse1 = 0) : (pluse1 = pluse1);
+                // order_interpreter_->control_serial_servo(7, pluse1, 0);
                 double angle2 = angle_calculator(p6, p8, p10);
                 if(angle2 == -1) angle2 = 180;
                 // angle_mean_filter(angle2, num2_, angle_sum2_, filter_result2_);
                 angle_mean_filter(angle2, num2_, angles2, filter_result2_);
                 double slope = double((p8.y - p6.y) )/ double((p8.x - p6.x));
                 double val_y = slope * (p10.x - p6.x);
-                int pluse2 = 0;
+                int pluse2 = 400;
                 if (val_y > (p10.y - p6.y)){
                     pluse2 = 0 + (500.0 / 120) * (filter_result2_ - 60);
                 } else {
-                    if(collision_detection(angle1, angle2) == true) {
-                        std::cout<<"collision"<<std::endl;
-                        continue;
-                    }
+                    // if(collision_detection(angle1, angle2) == true) {
+                    //     std::cout<<"collision"<<std::endl;
+                    //     continue;
+                    // }
                     pluse2 = 900 - (300.0 / 120) * (filter_result2_ - 60);
                 }
+                (pluse2 < 0) ? (pluse2 = 0) : (pluse2 = pluse2);
+                // order_interpreter_->control_serial_servo(6, pluse2, 0);
+                if(collision_detection_pluse_r(pluse2 , pluse1) == true) {
+                    std::cout<<"collision"<<std::endl;
+                    continue;
+                }
+                order_interpreter_->control_serial_servo(7, pluse1, 0);
                 order_interpreter_->control_serial_servo(6, pluse2, 0);
             }
 
@@ -283,7 +315,8 @@ void ActionImitationNode::MessageProcess(){
                 // angle_mean_filter(angle3, num3_, angle_sum3_, filter_result3_);
                 angle_mean_filter(angle3, num3_, angles3, filter_result3_);
                 int pluse3 = 100 + (750 / 180) * filter_result3_;
-                order_interpreter_->control_serial_servo(15, pluse3, 0);
+                (pluse3 < 0) ? (pluse3 = 0) : (pluse3 = pluse3);
+                // order_interpreter_->control_serial_servo(15, pluse3, 0);
 
                 double angle4 = angle_calculator(p5, p7, p9);
 
@@ -293,17 +326,24 @@ void ActionImitationNode::MessageProcess(){
                 angle_mean_filter(angle4, num4_, angles4, filter_result4_);
                 double slope = double((p7.y - p5.y) )/ double((p7.x - p5.x));
                 double val_y = slope * (p9.x - p5.x);
-                int pluse4 = 0;
+                int pluse4 = 600;
                 if (val_y > (p9.y - p5.y)){
                     pluse4 = 900 - (400.0 / 120) * (filter_result4_ - 60);
                     
                 } else {
-                    if(collision_detection(angle3, angle4) == true){
-                        std::cout<<"collision"<<std::endl;
-                        continue;
-                    }
+                    // if(collision_detection(angle3, angle4) == true){
+                    //     std::cout<<"collision"<<std::endl;
+                    //     continue;
+                    // }
                     pluse4 = 0 + (500.0 / 120) * (filter_result4_ - 60);
                 }
+                (pluse4 < 0) ? (pluse4 = 0) : (pluse4 = pluse4);
+                // order_interpreter_->control_serial_servo(14, pluse4, 0);
+                if(collision_detection_pluse_l(pluse4, pluse3) == true) {
+                    std::cout<<"collision"<<std::endl;
+                    continue;
+                }
+                order_interpreter_->control_serial_servo(15, pluse3, 0);
                 order_interpreter_->control_serial_servo(14, pluse4, 0);
             }
 

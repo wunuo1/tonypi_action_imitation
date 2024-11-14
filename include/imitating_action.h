@@ -38,6 +38,9 @@ private:
 
     bool collision_detection(const double& degree1, const double& degree2);
 
+    bool collision_detection_pluse_r(const int& p6, const int& p7);
+    bool collision_detection_pluse_l(const int& p14, const int& p15);
+
     void MessageProcess(void);
     std::shared_ptr<OrderInterpreter> order_interpreter_;
 
@@ -61,8 +64,6 @@ private:
     int left_control_num_ = 0;
     int offset_ = 70;
     float ratio_ = 0.15;
-    int limit_right_ = 20;
-    int limit_left_ = 60;
 
     int head_id_ = 0;
     int hand_id_ = 0;
